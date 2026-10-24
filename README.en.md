@@ -22,7 +22,7 @@ The extension attaches delegated click listeners in the capture phase to `docume
 
 1. Checks if the click lands inside the bounds of a visible `<video>` element.
 2. Skips clicks on buttons, links, controls, the seekbar, menus, and other interactive elements. The full-size play button shown over a paused video is treated as part of the player surface.
-3. Waits 250 ms to tell a single click from a double click.
+3. Waits 400 ms to tell a single click from a double click.
 4. A single click toggles playback by clicking Twitch's native `player-play-pause-button` to keep the player state in sync.
 5. A double click undoes the pause and toggles fullscreen, so the video does not end up paused after going fullscreen.
 6. Stops event propagation so Twitch does not perform the same action a second time.
@@ -31,7 +31,7 @@ The extension attaches delegated click listeners in the capture phase to `docume
 
 ### Option 1. Download from Releases (easiest)
 1. Go to the [Releases page](https://github.com/SleMi0/twitch-click-to-pause/releases)
-2. Download the ZIP archive of the latest release (e.g., `twitch-click-to-pause-v1.0.1.zip`)
+2. Download the ZIP archive of the latest release (e.g., `twitch-click-to-pause-v1.0.2.zip`)
 3. Extract the archive to a separate folder
 4. Open `chrome://extensions/`
 5. Enable **Developer mode** (toggle in the top-right corner)
