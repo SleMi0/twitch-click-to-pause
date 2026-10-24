@@ -28,7 +28,7 @@ The extension attaches a single delegated click listener in the capture phase to
 
 1. Download or clone the repository:
    ```bash
-   git clone https://github.com/<username>/twitch-click-to-pause.git
+   git clone https://github.com/SleMi0/twitch-click-to-pause.git
    ```
 2. Open `chrome://extensions/`
 3. Enable **Developer mode** (toggle in the top-right corner)

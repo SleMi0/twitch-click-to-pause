@@ -28,7 +28,7 @@ Chrome-расширение, позволяющее ставить трансл�
 
 1. Скачайте или клонируйте репозиторий:
    ```bash
-   git clone https://github.com/<username>/twitch-click-to-pause.git
+   git clone https://github.com/SleMi0/twitch-click-to-pause.git
    ```
 2. Откройте `chrome://extensions/`
 3. Включите **Режим разработчика** (переключатель в правом верхнем углу)
