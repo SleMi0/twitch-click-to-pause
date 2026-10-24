@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Twitch Click to Pause",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Click anywhere on the Twitch video to pause or resume playback.",
   "icons": {
     "16": "icons/icon16.png",
