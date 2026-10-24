@@ -24,8 +24,18 @@ The extension attaches a single delegated click listener in the capture phase to
 3. Toggles playback by clicking Twitch's native `player-play-pause-button` to keep the player state in sync.
 4. Stops event propagation to avoid a double-toggle on VODs.
 
-## Installation from source
+## Installation
 
+### Option 1. Download from Releases (easiest)
+1. Go to the [Releases page](https://github.com/SleMi0/twitch-click-to-pause/releases)
+2. Download the ZIP archive of the latest release (e.g., `twitch-click-to-pause-v1.0.0.zip`)
+3. Extract the archive to a separate folder
+4. Open `chrome://extensions/`
+5. Enable **Developer mode** (toggle in the top-right corner)
+6. Click **Load unpacked**
+7. Select the extracted folder
+
+### Option 2. Install from source
 1. Download or clone the repository:
    ```bash
    git clone https://github.com/SleMi0/twitch-click-to-pause.git
