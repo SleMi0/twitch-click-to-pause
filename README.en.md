@@ -11,6 +11,7 @@ A Chrome extension that lets you pause and resume Twitch streams and videos by c
 - Click the video area to pause/resume playback
 - Double click toggles fullscreen, just like Twitch itself (without pausing)
 - Works on live streams, VODs, and clips
+- Works through Twitch extension overlays (e.g. Hearthstone Deck Tracker)
 - Doesn't interfere with the control bar, chat, settings, seekbar, or menus
 - Works with embedded players on `player.twitch.tv`
 - Survives Twitch SPA navigation without page reloads
@@ -27,11 +28,13 @@ The extension attaches delegated click listeners in the capture phase to `docume
 5. A double click undoes the pause and toggles fullscreen, so the video does not end up paused after going fullscreen.
 6. Stops event propagation so Twitch does not perform the same action a second time.
 
+Twitch extension overlays (`*.ext-twitch.tv`) are rendered in a separate cross-origin iframe, and clicks inside it never reach the page that owns the player. Such an iframe forwards the click to its parent page via `postMessage` (nested frames pass it further up), and the parent verifies that the point really lies over the video and toggles playback. Clicks on the extension's own buttons and other interactive elements are left alone.
+
 ## Installation
 
 ### Option 1. Download from Releases (easiest)
 1. Go to the [Releases page](https://github.com/SleMi0/twitch-click-to-pause/releases)
-2. Download the ZIP archive of the latest release (e.g., `twitch-click-to-pause-v1.0.2.zip`)
+2. Download the ZIP archive of the latest release (e.g., `twitch-click-to-pause-v1.1.0.zip`)
 3. Extract the archive to a separate folder
 4. Open `chrome://extensions/`
 5. Enable **Developer mode** (toggle in the top-right corner)

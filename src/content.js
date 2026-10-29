@@ -50,6 +50,13 @@
     '[data-a-target="content-gate"]',
     '[data-a-target*="unmute"]',
     '[data-test-selector="player-controls"]',
+    // Twitch extension UI: the dock on the right of the player, the extension
+    // settings popover and its info balloon. The dock card is a plain div, so
+    // it has to be matched by class rather than by tag/role.
+    '[class*="extensions-dock"]',
+    '[class*="extensions-popover"]',
+    '[class*="extensions-info-balloon"]',
+    '[class*="extensions-notifications"]',
   ].join(',');
 
   // Best-effort detection of a running ad inside the player.
@@ -69,6 +76,46 @@
     '.ReactModal__Overlay',
   ].join(',');
 
+  // Twitch extensions (Hearthstone Deck Tracker, polls, overlays, ...) live in
+  // cross-origin iframes on top of the player. Clicks inside such an iframe are
+  // dispatched in the iframe document only, so the player document never sees
+  // them. The iframe forwards the click with a message instead.
+  const EXTENSION_HOST = 'ext-twitch.tv';
+  const EXTENSION_CLICK_MESSAGE = 'twitch-click-to-pause:click';
+  // Twitch nests the extension inside a supervisor frame, so one click can be
+  // relayed by more than one document. Every forwarded click carries an id so
+  // the player can ignore the copies and handle the original click once.
+  const FORWARDED_CLICK_TTL = 2000;
+  let forwardedClickSequence = 0;
+  const seenForwardedClicks = new Map();
+
+  function isExtensionHost(hostname) {
+    return hostname === EXTENSION_HOST || hostname.endsWith(`.${EXTENSION_HOST}`);
+  }
+
+  function isExtensionFrame(element) {
+    if (!(element instanceof HTMLIFrameElement)) return false;
+    try {
+      return isExtensionHost(new URL(element.src, location.href).hostname);
+    } catch {
+      return false;
+    }
+  }
+
+  // Extension overlays are sometimes wrapped in a container that captures the
+  // pointer, so both the iframe itself and any element containing it count.
+  function isExtensionOverlayAtPoint(element, x, y) {
+    if (isExtensionFrame(element)) return true;
+    if (!(element instanceof Element)) return false;
+
+    for (const frame of element.querySelectorAll('iframe')) {
+      if (!isExtensionFrame(frame)) continue;
+      const rect = frame.getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return true;
+    }
+    return false;
+  }
+
   function rectsOverlap(a, b) {
     return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
   }
@@ -85,7 +132,12 @@
     const player = video.closest(PLAYER_SELECTOR);
     // Without a player root overlays cannot be told apart from the player, so
     // stay permissive instead of breaking playback on unusual embeds.
-    return player ? player.contains(topmost) : true;
+    if (!player) return true;
+
+    // Extension overlays are separate documents. The iframe element itself (or
+    // its wrapper) is the topmost node here, but it is still part of the
+    // player surface.
+    return player.contains(topmost) || isExtensionOverlayAtPoint(topmost, x, y);
   }
 
   // Pick the largest visible video under the click. Using coordinates instead of
@@ -308,33 +360,21 @@
     });
   }
 
-  function onClick(event) {
-    if (event.button !== 0) return;
-    if (event.defaultPrevented) return;
-    // Ignore clicks the extension itself dispatched on Twitch's buttons.
-    if (clickingNativeButton) return;
-
-    const video = isVideoClickEvent(event);
-    if (!video) return;
-
+  // Shared by real clicks on the player and by clicks forwarded from an
+  // extension iframe lying on top of the video.
+  function handleVideoClick(video, detail, timeStamp) {
     // A new click always supersedes any pending playback restore.
     cancelPlaybackRestore();
 
     const previous = pendingClick;
-    // event.detail and event.timeStamp are assigned by the browser when the event
-    // happens, so they stay correct even when the page's main thread is busy and
-    // the two clicks are processed far apart.
+    // detail and timeStamp are assigned by the browser when the event happens,
+    // so they stay correct even when the page's main thread is busy and the two
+    // clicks are processed far apart.
     const isDoubleClick =
-      event.detail >= 2 ||
+      detail >= 2 ||
       (previous !== null &&
         previous.video === video &&
-        event.timeStamp - previous.startedAt < DBLCLICK_THRESHOLD);
-
-    // Twitch reacts to the same click on its own (it toggles playback on VODs
-    // and enters fullscreen on double click), which caused a double toggle.
-    // From here on the extension owns both actions, so Twitch must not see them.
-    event.stopPropagation();
-    event.stopImmediatePropagation();
+        timeStamp - previous.startedAt < DBLCLICK_THRESHOLD);
 
     if (isDoubleClick) {
       const alreadyToggled = previous !== null && previous.timer === null;
@@ -352,7 +392,7 @@
 
     const entry = {
       video,
-      startedAt: event.timeStamp,
+      startedAt: timeStamp,
       wasPaused: video.paused,
       timer: null,
       cleanup: null,
@@ -372,6 +412,24 @@
     pendingClick = entry;
   }
 
+  function onClick(event) {
+    if (event.button !== 0) return;
+    if (event.defaultPrevented) return;
+    // Ignore clicks the extension itself dispatched on Twitch's buttons.
+    if (clickingNativeButton) return;
+
+    const video = isVideoClickEvent(event);
+    if (!video) return;
+
+    // Twitch reacts to the same click on its own (it toggles playback on VODs
+    // and enters fullscreen on double click), which caused a double toggle.
+    // From here on the extension owns both actions, so Twitch must not see them.
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    handleVideoClick(video, event.detail, event.timeStamp);
+  }
+
   // The browser fires dblclick on its own even when the click events were
   // stopped, so it has to be swallowed too - the extension already handled it.
   function onDoubleClick(event) {
@@ -382,10 +440,126 @@
     event.stopImmediatePropagation();
   }
 
+  function frameFromSource(source) {
+    for (const frame of document.querySelectorAll('iframe')) {
+      if (frame.contentWindow === source) return frame;
+    }
+    return null;
+  }
+
+  // Translate a point from an iframe's viewport into this document. The scale is
+  // normally 1, but overlays can be resized with CSS transforms.
+  function pointInFrame(frame, x, y) {
+    const localX = Number(x);
+    const localY = Number(y);
+    if (!Number.isFinite(localX) || !Number.isFinite(localY)) return null;
+
+    const rect = frame.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+
+    const scaleX = frame.clientWidth ? rect.width / frame.clientWidth : 1;
+    const scaleY = frame.clientHeight ? rect.height / frame.clientHeight : 1;
+    return { x: rect.left + localX * scaleX, y: rect.top + localY * scaleY };
+  }
+
+  function postClickToParent(x, y, detail, id) {
+    window.parent.postMessage(
+      { type: EXTENSION_CLICK_MESSAGE, x, y, detail, id },
+      '*',
+    );
+  }
+
+  function createForwardedClickId() {
+    forwardedClickSequence += 1;
+    const random = Math.random().toString(36).slice(2);
+    return `${Date.now().toString(36)}-${forwardedClickSequence}-${random}`;
+  }
+
+  // The same click may arrive several times when a click is relayed through more
+  // than one nested frame. Handling the copies separately would look like a
+  // double click to the player (which toggles fullscreen instead of playback).
+  function isDuplicateForwardedClick(id) {
+    if (typeof id !== 'string' || !id) return false;
+
+    const now = performance.now();
+    const previous = seenForwardedClicks.get(id);
+    if (previous !== undefined && now - previous < FORWARDED_CLICK_TTL) return true;
+
+    seenForwardedClicks.set(id, now);
+    if (seenForwardedClicks.size > 100) {
+      for (const [key, at] of seenForwardedClicks) {
+        if (now - at > FORWARDED_CLICK_TTL) seenForwardedClicks.delete(key);
+      }
+    }
+    return false;
+  }
+
+  // A click forwarded by an extension iframe. The iframe is cross-origin, so the
+  // position is relative to its own viewport and has to be mapped back into this
+  // document before the video under the cursor can be found.
+  function onExtensionFrameClick(event) {
+    const data = event.data;
+    if (!data || data.type !== EXTENSION_CLICK_MESSAGE) return;
+
+    const frame = event.source ? frameFromSource(event.source) : null;
+    if (!frame || !isExtensionFrame(frame)) return;
+    if (isDuplicateForwardedClick(data.id)) return;
+
+    const point = pointInFrame(frame, data.x, data.y);
+    if (!point) return;
+
+    const video = videoAtPoint(point.x, point.y);
+    if (!video || isAdPlaying(video)) return;
+
+    // The timestamp cannot be reused: each document has its own time origin.
+    handleVideoClick(video, Number(data.detail) || 1, performance.now());
+  }
+
+  // Inside an extension iframe there is no video to toggle, but clicks still have
+  // to reach the player that hosts the iframe.
+  function installExtensionFrameBridge() {
+    document.addEventListener(
+      'click',
+      (event) => {
+        if (event.button !== 0) return;
+        // The extension's own controls (buttons, links, menus, ...) must not
+        // pause the stream behind them.
+        if (shouldIgnore(event.target)) return;
+
+        postClickToParent(event.clientX, event.clientY, event.detail, createForwardedClickId());
+      },
+      true,
+    );
+
+    // Twitch nests the real extension inside a supervisor iframe, so a click can
+    // arrive from a child frame. Map it into this document and pass it further
+    // up: the video is only known to the page that owns the player.
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      if (!data || data.type !== EXTENSION_CLICK_MESSAGE) return;
+
+      const frame = event.source ? frameFromSource(event.source) : null;
+      if (!frame || !isExtensionFrame(frame)) return;
+
+      const point = pointInFrame(frame, data.x, data.y);
+      if (!point) return;
+
+      postClickToParent(point.x, point.y, Number(data.detail) || 1, data.id);
+    });
+  }
+
+  // Extension overlays are rendered in their own cross-origin document on top of
+  // the player, so only the hosting document can toggle playback.
+  if (isExtensionHost(location.hostname)) {
+    if (window.parent !== window) installExtensionFrameBridge();
+    return;
+  }
+
   // A single capture-phase listener on document survives SPA navigation and
   // player re-creation, so there is nothing to re-attach.
   document.addEventListener('click', onClick, true);
   document.addEventListener('dblclick', onDoubleClick, true);
+  window.addEventListener('message', onExtensionFrameClick);
 
   // Clicking a control, pressing a key or scrolling means the user is back in
   // charge, so a pending playback restore must stop instead of fighting them.
