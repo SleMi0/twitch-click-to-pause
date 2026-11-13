@@ -8,3 +8,6 @@ Desktop.ini
 *.log
 node_modules/
 *.zip
+
+# Local OpenCode configuration (not part of the extension)
+opencode.json
