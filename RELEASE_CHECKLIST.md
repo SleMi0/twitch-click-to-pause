@@ -2,7 +2,12 @@
 
 **Current release:** `v1.1.1` (`twitch-click-to-pause-v1.1.1.zip`)
 **Current source:** matches the v1.1.1 ZIP (manifest, `src/content.js`, icons, READMEs, LICENSE).
-**Status:** release prepared; branded Chrome smoke complete; publication pending.
+**Status:** published.
+**Release URL:** https://github.com/SleMi0/twitch-click-to-pause/releases/tag/v1.1.1
+**Release commit:** `1e3ddecd031eb46c67fad617ab410b9d3808ea0a`
+**Asset:** `twitch-click-to-pause-v1.1.1.zip`, 22486 bytes
+**SHA256:** `FD1F318B9EF7767E96DC43093036329C3D2DC97096B2B61B734EB538E5513247`
+**Publication verification:** release tag `v1.1.1`, target commit `1e3ddec`, one asset; downloaded asset SHA256 and size match the local archive.
 
 ## 1. Preconditions
 
@@ -77,11 +82,11 @@ Excluded:
 
 ## 5. Post-release
 
-- [ ] Tag the release (`v1.1.1`).
-- [ ] Publish GitHub Release with ZIP + SHA256.
-- [ ] Update README release examples (already `v1.1.1`).
-- [ ] Keep the previous ZIP for rollback.
-- [ ] Announce known limitations: ads best-effort/BLOCKED, same-URL stream swap, about:blank/srcdoc unverified, real modal/multiple-player/mobile scenarios manual.
+- [x] Tag the release (`v1.1.1`).
+- [x] Publish GitHub Release with ZIP + SHA256.
+- [x] Update README release examples (already `v1.1.1`).
+- [x] Keep the previous ZIP for rollback.
+- [x] Announce known limitations: ads best-effort/BLOCKED, same-URL stream swap, about:blank/srcdoc unverified, real modal/multiple-player/mobile scenarios manual.
 
 ## 6. Do not release if
 
