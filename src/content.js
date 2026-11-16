@@ -27,6 +27,15 @@
   // Do not retry a playback restore immediately: the native button may update
   // video.paused asynchronously (React state, re-render, live reconnect).
   const RESTORE_RETRY_GUARD = 600;
+  // Check schedule for the double-click restore, which may restore either
+  // direction. It keeps the original timing; the 300 ms tick is below the guard
+  // above and is therefore skipped, the later ones are spaced above it.
+  const RESTORE_RETRY_DELAYS = [300, 900, 1600, 2500, 4000];
+  // Enforcing a single-click pause can check sooner: a pause reaches the media
+  // element in tens of ms on the real player. Resuming is never retried - a
+  // live stream needs one to three seconds to reconnect after resume, and a
+  // retry during that window would toggle the player back to paused.
+  const PAUSE_RETRY_DELAYS = [RESTORE_RETRY_GUARD, 1200, 1900, 2700, 4000];
   // The browser dispatches dblclick after the second click. The fullscreen
   // transition can delay it by several hundred milliseconds, so the window is
   // wider than the click threshold. The target check below keeps a later
@@ -479,13 +488,20 @@
     playbackRestoreToken++;
   }
 
-  function applyPlaybackState(video, shouldBePaused) {
+  function applyPlaybackState(video, shouldBePaused, retryDelays = RESTORE_RETRY_DELAYS) {
     const token = ++playbackRestoreToken;
     // Never fall back to "the first video on the page": after SPA navigation or
     // a player re-render that is a different player, not the one we clicked.
     const activeVideo = () => (document.contains(video) ? video : null);
     const identity = pageIdentity();
     let lastToggleAt = performance.now();
+
+    // An ad can start inside the click delay. Do not touch playback then: the
+    // native control is hidden or disabled during an ad and the media fallback
+    // can freeze the ad. The click is dropped, exactly like a click on an ad;
+    // this also drops a double-click restore whose playback toggle would have
+    // run during the ad.
+    if (isAdPlaying(video)) return;
 
     if (video.paused !== shouldBePaused) {
       togglePlayback(video);
@@ -494,14 +510,19 @@
     // The player can swallow the toggle while it re-renders for fullscreen, or
     // while a live stream reconnects, so keep checking for a short while. The
     // token makes sure a newer click cancels the restore. The guard prevents a
-    // retry while the previous toggle may still be settling.
-    [300, 900, 1600, 2500, 4000].forEach((delay) => {
+    // retry while the previous toggle may still be settling. A playback change
+    // the page cannot see (OS media keys, Picture-in-Picture) does not cancel
+    // these checks, so the schedule is deliberately short and bounded.
+    retryDelays.forEach((delay) => {
       setTimeout(() => {
         if (token !== playbackRestoreToken) return;
         const target = activeVideo();
         if (!target) return;
         if (pageIdentity() !== identity) return;
         if (target.paused === shouldBePaused) return;
+        // A mid-roll ad can start after the click. The native control is hidden
+        // or disabled then, and the media fallback can freeze the ad.
+        if (isAdPlaying(target)) return;
         if (performance.now() - lastToggleAt < RESTORE_RETRY_GUARD) return;
         togglePlayback(target);
         lastToggleAt = performance.now();
@@ -538,6 +559,10 @@
 
       toggleFullscreen(video);
       if (alreadyToggled && stateBeforeClick !== null) {
+        // The restore keeps the retry schedule in both directions because the
+        // first click's delayed toggle can land after this call. Known
+        // limitation: on a live stream, retrying a restore to playing can
+        // toggle the player back while it is still reconnecting.
         applyPlaybackState(video, stateBeforeClick);
       }
       return true;
@@ -563,7 +588,16 @@
         pendingClicks.delete(video);
         return;
       }
-      togglePlayback(video);
+      // Enforce the state the user asked for instead of toggling whatever state
+      // exists now. Measured on the real player: Twitch applies pause/play
+      // asynchronously (its MSE scheduler settles the media state tens of ms
+      // after the click and during live start/reconnect), so a state change can
+      // land inside this delay. A blind toggle then inverted the click - the
+      // user asked for pause, playback was already paused, and the toggle
+      // resumed it. applyPlaybackState() toggles only when the state differs and
+      // re-checks briefly, so a change applied right after the click is undone.
+      // Only the pause direction is verified; see PAUSE_RETRY_DELAYS.
+      applyPlaybackState(video, !entry.wasPaused, entry.wasPaused ? [] : PAUSE_RETRY_DELAYS);
     }, CLICK_DELAY);
 
     // Keep the entry around while a second click can still arrive, then forget it.

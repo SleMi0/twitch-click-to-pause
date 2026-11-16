@@ -408,6 +408,165 @@ test('single click toggles playback', () => {
 });
 
 // ---------------------------------------------------------------------------
+// The single click must enforce the state the user asked for. Twitch applies
+// pause/play asynchronously through its MSE scheduler (measured on the real
+// player), so a blind toggle at +CLICK_DELAY can land on an already-changed
+// state and invert the click.
+// ---------------------------------------------------------------------------
+test('single click keeps the intended pause when playback resumes on its own', () => {
+  const h = makeHarness();
+  const { video } = basicVideo(h, { paused: false });
+  h.userPointerDown(video);
+  h.userClick(video, { detail: 1 });
+  h.clock.advance(500);
+  assert(video.paused === true, 'precondition: the click paused the video', { paused: video.paused });
+
+  // Twitch resumes by itself shortly after (startup / live reconnect / a play
+  // promise that settles late).
+  video.paused = false;
+  h.clock.advance(700);
+  assert(video.paused === true, 'the first check re-applies the pause', {
+    paused: video.paused,
+    toggleCount: h.state.toggleCount,
+  });
+
+  h.clock.advance(3300);
+  assert(video.paused === true, 'the intended pause is kept for the whole window', {
+    paused: video.paused,
+    toggleCount: h.state.toggleCount,
+  });
+});
+
+test('playback enforcement does not toggle during an ad that starts after the click', () => {
+  const h = makeHarness();
+  const video = h.makeVideo('video', { paused: false });
+  const play = h.makeButton('play', { kind: 'play', video });
+  const fsBtn = h.makeButton('fullscreen', { kind: 'fullscreen', video });
+  const ad = new MockElement('ad', { rect: { left: 0, top: 0, right: 60, bottom: 30, width: 60, height: 30 } });
+  const player = h.makePlayer('player', { rect: video.rect, video, playButton: play, fullscreenButton: fsBtn });
+  h.state.topmost = video;
+
+  h.userPointerDown(video);
+  h.userClick(video, { detail: 1 });
+  // A mid-roll ad starts inside the click delay.
+  player.querySelectorAll = () => [ad];
+  h.clock.advance(5000);
+
+  assert(play.clickCalls === 0, 'no synthetic toggle during the ad', { clickCalls: play.clickCalls });
+  assert(video.paused === false, 'playback untouched while the ad is on screen', { paused: video.paused });
+});
+
+test('playback enforcement does not retry during an ad that starts after the pause', () => {
+  const h = makeHarness();
+  const video = h.makeVideo('video', { paused: false });
+  const play = h.makeButton('play', { kind: 'play', video });
+  const fsBtn = h.makeButton('fullscreen', { kind: 'fullscreen', video });
+  const ad = new MockElement('ad', { rect: { left: 0, top: 0, right: 60, bottom: 30, width: 60, height: 30 } });
+  const player = h.makePlayer('player', { rect: video.rect, video, playButton: play, fullscreenButton: fsBtn });
+  h.state.topmost = video;
+
+  h.userPointerDown(video);
+  h.userClick(video, { detail: 1 });
+  h.clock.advance(500);
+  assert(video.paused === true, 'paused before the ad starts', { paused: video.paused });
+  assert(play.clickCalls === 1, 'one toggle so far', { clickCalls: play.clickCalls });
+
+  // The ad starts, then Twitch resumes on its own; the retry must not touch it.
+  player.querySelectorAll = () => [ad];
+  video.paused = false;
+  h.clock.advance(4000);
+
+  assert(play.clickCalls === 1, 'no retry toggle during the ad', { clickCalls: play.clickCalls });
+  assert(video.paused === false, 'the ad keeps playing', { paused: video.paused });
+});
+
+test('forwarded click keeps the intended pause when playback resumes on its own', () => {
+  const h = makeHarness();
+  const video = h.makeVideo('video', { paused: false });
+  const play = h.makeButton('play', { kind: 'play', video });
+  const fsBtn = h.makeButton('fullscreen', { kind: 'fullscreen', video });
+  h.makePlayer('player', { rect: video.rect, video, playButton: play, fullscreenButton: fsBtn });
+  const ext = h.makeIframe('ext', { src: 'https://abc.ext-twitch.tv/x', rect: video.rect, contentWindow: { id: 'ext' } });
+  h.state.topmost = ext;
+
+  h.fireWinMessage({ type: 'twitch-click-to-pause:click', x: 400, y: 225, detail: 1, id: 'f1' }, ext.contentWindow);
+  h.clock.advance(500);
+  assert(video.paused === true, 'forwarded click paused playback', { paused: video.paused });
+
+  video.paused = false;
+  h.clock.advance(1500);
+  assert(video.paused === true, 'forwarded click keeps the pause', { paused: video.paused });
+});
+
+test('single click does not resume a video Twitch paused during the delay', () => {
+  const h = makeHarness();
+  const { video, play } = basicVideo(h, { paused: false });
+  h.userPointerDown(video);
+  h.userClick(video, { detail: 1 });
+
+  // Twitch reacts to the same click on its own and pauses before the delayed
+  // toggle fires. The user asked for pause, so the delayed action must keep it
+  // paused instead of toggling the new state back to playing.
+  h.clock.advance(100);
+  video.paused = true;
+  h.clock.advance(900);
+
+  assert(video.paused === true, 'click-time intent is enforced, not inverted', {
+    paused: video.paused,
+    clickCalls: play.clickCalls,
+  });
+  assert(play.clickCalls === 0, 'no opposite toggle was sent', { clickCalls: play.clickCalls });
+});
+
+test('second single click resumes playback', () => {
+  const h = makeHarness();
+  const { video } = basicVideo(h, { paused: false });
+  h.userPointerDown(video);
+  h.userClick(video, { detail: 1 });
+  h.clock.advance(1500);
+  assert(video.paused === true, 'first click paused', { paused: video.paused });
+
+  h.userPointerDown(video);
+  h.userClick(video, { detail: 1 });
+  h.clock.advance(1500);
+  assert(video.paused === false, 'second click resumed', { paused: video.paused });
+});
+
+test('a resume click is not repeated while a live player reconnects', () => {
+  const h = makeHarness();
+  const video = h.makeVideo('video', { paused: true });
+  // A live resume reconnects for a while: the player accepts the play request
+  // but the media stays paused until the stream is back.
+  const play = h.makeButton('play', { kind: 'play', video, asyncDelay: 1000 });
+  const fsBtn = h.makeButton('fullscreen', { kind: 'fullscreen', video });
+  h.makePlayer('player', { rect: video.rect, video, playButton: play, fullscreenButton: fsBtn });
+  h.state.topmost = video;
+
+  h.userPointerDown(video);
+  h.userClick(video, { detail: 1 });
+  h.clock.advance(5000);
+
+  assert(play.clickCalls === 1, 'resume sends exactly one toggle', { clickCalls: play.clickCalls });
+  assert(video.paused === false, 'the video ends up playing', { paused: video.paused });
+});
+
+test('a new user action cancels the single-click playback verification', () => {
+  const h = makeHarness();
+  const { video, play } = basicVideo(h, { paused: false });
+  h.userPointerDown(video);
+  h.userClick(video, { detail: 1 });
+  h.clock.advance(500);
+  assert(video.paused === true, 'paused by the click', { paused: video.paused });
+
+  // The user chooses to resume with Twitch's own control.
+  h.userPointerDown(play, { x: 400, y: 420 });
+  video.paused = false;
+  h.clock.advance(4000);
+
+  assert(video.paused === false, 'verification must not fight the user', { paused: video.paused });
+});
+
+// ---------------------------------------------------------------------------
 // Regression: normal double click
 // ---------------------------------------------------------------------------
 test('double click toggles fullscreen and keeps playback', () => {
