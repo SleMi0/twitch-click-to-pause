@@ -2,11 +2,12 @@
 
 **Current release:** `v1.1.2` (`twitch-click-to-pause-v1.1.2.zip`)
 **Current source:** matches the v1.1.2 ZIP (manifest, `src/content.js`, icons, READMEs, LICENSE).
-**Status:** ready to publish.
+**Status:** published.
 **Release URL:** https://github.com/SleMi0/twitch-click-to-pause/releases/tag/v1.1.2
-**Release commit:** recorded in the follow-up documentation commit after publication.
+**Release commit:** `89e3762e9cb0ef3be49ab3591d5eb0809b49168c`
 **Asset:** `twitch-click-to-pause-v1.1.2.zip`, 23476 bytes
 **SHA256:** `3AE2FE06A0C8DCBC5B9870BBE11812C3CD8F2236DEFBEFAB1C1F29C071DD0AA4`
+**Publication verification:** release tag `v1.1.2` points to `89e3762`, `main` and the tag are pushed, one asset attached, GitHub asset digest matches, and the downloaded asset SHA256 and size match the local archive.
 
 ## 1. Preconditions
 
@@ -66,11 +67,11 @@ Excluded: `tests/`, `AGENTS.md`, `AUDIT_REPORT.md`, `FIX_PROGRESS.md`, `TECHNICA
 
 ## 5. Post-release
 
-- [ ] Tag the release (`v1.1.2`) and push it.
-- [ ] Publish the GitHub Release with the ZIP.
-- [ ] Record the release commit, asset size, and SHA256 in this file (follow-up documentation commit).
-- [ ] Keep the previous ZIP and release for rollback.
-- [ ] Announce the known limitations: ads best-effort/BLOCKED, same-URL stream swap, `about:blank`/`srcdoc` unverified, real modal/multiple-player/mobile scenarios manual, a slow double click on a live stream can still cancel the player's reconnect.
+- [x] Tag the release (`v1.1.2`) and push it.
+- [x] Publish the GitHub Release with the ZIP.
+- [x] Record the release commit, asset size, and SHA256 in this file (follow-up documentation commit).
+- [x] Keep the previous ZIP and release for rollback.
+- [x] Announce the known limitations: ads best-effort/BLOCKED, same-URL stream swap, `about:blank`/`srcdoc` unverified, real modal/multiple-player/mobile scenarios manual, a slow double click on a live stream can still cancel the player's reconnect.
 
 ## 6. Do not release if
 
