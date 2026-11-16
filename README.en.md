@@ -24,7 +24,7 @@ The extension attaches delegated click listeners in the capture phase to `docume
 1. Checks if the click lands inside the bounds of a visible `<video>` element.
 2. Skips clicks on buttons, links, controls, the seekbar, menus, and other interactive elements. The full-size play button shown over a paused video is treated as part of the player surface.
 3. Waits 400 ms to tell a single click from a double click. If the user presses a control, a key, opens a menu, or opens a modal during that window, the delayed click is cancelled: the newer action wins.
-4. A single click toggles playback by clicking Twitch's native `player-play-pause-button` to keep the player state in sync. Delayed state is kept per video, so a click on one player does not cancel a click on another.
+4. A single click applies the state the user asked for (pause or resume) by clicking Twitch's native `player-play-pause-button` to keep the player state in sync. If Twitch changes playback during the 400 ms window, the extension does not toggle blindly: it keeps the user's intent and briefly re-checks a pause. Delayed state is kept per video, so a click on one player does not cancel a click on another.
 5. A double click undoes the pause and toggles Twitch's fullscreen/theater mode (enter and exit), so the video does not end up paused after going full-window. If the native button is missing or swallows the click, the Fullscreen API is used; `Esc` cancels the delayed fallback. Playback restoration accounts for asynchronous `video.paused` updates.
 6. Stops event propagation so Twitch does not perform the same action a second time.
 
@@ -34,7 +34,7 @@ Twitch extension overlays (`*.ext-twitch.tv`) are rendered in a separate cross-o
 
 ### Option 1. Download from Releases (easiest)
 1. Go to the [Releases page](https://github.com/SleMi0/twitch-click-to-pause/releases)
-2. Download the ZIP archive of the latest release (e.g., `twitch-click-to-pause-v1.1.1.zip`)
+2. Download the ZIP archive of the latest release (e.g., `twitch-click-to-pause-v1.1.2.zip`)
 3. Extract the archive to a separate folder
 4. Open `chrome://extensions/`
 5. Enable **Developer mode** (toggle in the top-right corner)
@@ -87,7 +87,7 @@ The release ZIP contains only `icons/`, `src/`, `manifest.json`, `README*`, and 
 
 ## Testing
 
-- `node --test tests/content.test.js` — 48 mock-DOM tests on the built-in Node test runner, no npm dependencies.
+- `node --test tests/content.test.js` — 56 mock-DOM tests on the built-in Node test runner, no npm dependencies.
 - These are not browser tests. Real checks are described in `MANUAL_TEST_CHECKLIST.md`; results are in `BROWSER_TEST_REPORT.md`.
 
 ## Limitations

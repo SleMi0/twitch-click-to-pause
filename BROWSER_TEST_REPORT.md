@@ -191,3 +191,31 @@ The extension is ready for the **v1.1.1** source release with the documented lim
 - Real modal, scaled iframe, `about:blank`/`srcdoc`, multiple players, and mobile/touch remain manual/unverified.
 
 Automated evidence: **48/48** in-repo tests, **59/59** external harness assertions, Chrome for Testing **25 PASS + 1 BLOCKED**, branded Chrome **22 PASS + 4 BLOCKED**, focused fullscreen probes PASS on both browsers.
+## 12. v1.1.2 patch verification (2026-11-16)
+
+**Environment:** Windows, Node.js 24.22.0, Microsoft Edge 157.0.4341.60 (Chromium), unpacked MV3 extension loaded with `--load-extension`, headless. Real Twitch: VOD `2921848532`, live channels `handofblood`/`krokoboss`/`nooreax`/`jokerdtv`, clip `caedrel/clip/UnsightlySullenHorseSquadGoals-cnOxH-atz3pnQAox`. No credentials used.
+
+**Change under test:** a single click now applies the state the user asked for instead of blindly toggling whatever state exists after the 400 ms delay; the pause direction is re-checked briefly, a resume is not retried, and playback enforcement is skipped during ads.
+
+| Check | Result | Status |
+|---|---|---|
+| In-page baseline: Twitch's own click handling on a VOD | pause arrives 23-42 ms after the click via the asynchronous player-core/MSE path | PASS |
+| Delayed-click inversion, previous code | state change inside the 400 ms window -> click ended **playing** | PASS (reproduced) |
+| Delayed-click inversion, fixed code | same scenario -> click ended **paused**; control run -> **paused** | PASS |
+| Live pause soak | pause held for 8 s, exactly **one** synthetic toggle on `player-play-pause-button` | PASS |
+| Live resume | `paused -> playing` after ~0.75 s reconnect | PASS |
+| Live 3 clicks | pause / resume / pause on 3 live channels | PASS |
+| VOD smoke | double click keeps playback and enters theater, Esc exits, native control toggles once, seekbar click does not toggle, pause stable for 4 s, second click resumes | 8/8 PASS |
+| Clip | `playing -> paused -> playing -> paused` | PASS |
+| Navigation between channels | click after navigation pauses | PASS |
+| Release ZIP | extracted archive loaded unpacked; isolated world `Twitch Click to Pause` present; pause/resume works | PASS |
+| Unit tests | `node --test tests/content.test.js` -> 56/56 | PASS |
+| Tests against previous release source | `bed92b5` + new tests -> 51 pass, 4 fail | PASS (red-green) |
+
+**Limitations of this patch verification:**
+
+- Headless run: real `document.fullscreenElement` was not obtained; Twitch used its theater fallback. The fullscreen code path is unchanged from v1.1.1.
+- No live channel with a real `ext-twitch.tv` overlay was available in this session; the bridge code path is unchanged and covered by unit tests, including a new forwarded-click regression test.
+- Real ad insertion remains **BLOCKED** (not observed); the new ad guards are covered by unit tests only.
+- The user-reported intermittent occurrence was reproduced deterministically (state change injected inside the 400 ms window), not observed naturally.
+- Branded Chrome was not used in this round; Edge 157 is Chromium-based and ran the same unpacked MV3 extension.

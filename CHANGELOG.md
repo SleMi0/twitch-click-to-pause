@@ -4,6 +4,23 @@ All notable changes to Twitch Click to Pause are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.1.2] - 2026-11-16
+
+### Fixed
+
+- The first click after opening a stream no longer pauses and then resumes on its own. A single click now applies the state the user asked for instead of blindly toggling whatever state exists after the 400 ms double-click delay. If Twitch changes playback inside that window (its own click handling, the live start/reconnect sequence, or an asynchronous player/MSE update), the intended pause is kept instead of being inverted.
+- A single click no longer toggles playback back when Twitch already paused or resumed the video during the delay.
+- Pause enforcement is bounded and cancelled by any new user action, and it does not retry a resume: a live stream keeps its 1-3 s reconnect window.
+- Playback enforcement is skipped while an ad is on screen, both in the click window and in the retry checks.
+
+### Added
+
+- Regression tests for the delayed-click inversion, a spontaneous live resume, the ad guard, the live resume/reconnect case, and the extension-iframe click path (56 tests total).
+
+### Changed
+
+- README release example and test count updated. No permissions, manifest structure, or architecture changes.
+
 ## [1.1.1] - 2026-11-13
 
 ### Fixed

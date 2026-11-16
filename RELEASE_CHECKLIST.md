@@ -1,37 +1,33 @@
-# Release Checklist — Twitch Click to Pause
+# Release Checklist - Twitch Click to Pause
 
-**Current release:** `v1.1.1` (`twitch-click-to-pause-v1.1.1.zip`)
-**Current source:** matches the v1.1.1 ZIP (manifest, `src/content.js`, icons, READMEs, LICENSE).
-**Status:** published.
-**Release URL:** https://github.com/SleMi0/twitch-click-to-pause/releases/tag/v1.1.1
-**Release commit:** `1e3ddecd031eb46c67fad617ab410b9d3808ea0a`
-**Asset:** `twitch-click-to-pause-v1.1.1.zip`, 22486 bytes
-**SHA256:** `FD1F318B9EF7767E96DC43093036329C3D2DC97096B2B61B734EB538E5513247`
-**Publication verification:** release tag `v1.1.1`, target commit `1e3ddec`, one asset; downloaded asset SHA256 and size match the local archive.
+**Current release:** `v1.1.2` (`twitch-click-to-pause-v1.1.2.zip`)
+**Current source:** matches the v1.1.2 ZIP (manifest, `src/content.js`, icons, READMEs, LICENSE).
+**Status:** ready to publish.
+**Release URL:** https://github.com/SleMi0/twitch-click-to-pause/releases/tag/v1.1.2
+**Release commit:** recorded in the follow-up documentation commit after publication.
+**Asset:** `twitch-click-to-pause-v1.1.2.zip`, 23476 bytes
+**SHA256:** `3AE2FE06A0C8DCBC5B9870BBE11812C3CD8F2236DEFBEFAB1C1F29C071DD0AA4`
 
 ## 1. Preconditions
 
-- [x] All intended code fixes are committed/reviewed.
+- [x] All intended code fixes are committed/reviewed (independent subagent code review, two passes).
 - [x] `node --check src/content.js` passes.
-- [x] `manifest.json` parses and is valid MV3.
-- [x] `node --test tests/content.test.js` passes (48 tests).
-- [x] External harness passes (59 assertions).
-- [x] `BROWSER_TEST_REPORT.md` reviewed; Chrome for Testing 25 PASS + 1 BLOCKED; branded Chrome 22 PASS + 4 BLOCKED; 0 FAIL.
-- [x] `MANUAL_TEST_CHECKLIST.md` completed in **real branded Chrome** for the automated scope; remaining C-only rows are explicitly disclosed as manual/known limitations.
-- [x] No extension-specific console/runtime errors.
-- [x] Security review: origin/source/coords/detail validation, no new permissions, no network requests.
-- [x] Ads tested with a real ad or explicitly marked BLOCKED.
-- [x] Extension overlay tested with a real `ext-twitch.tv` frame.
-- [x] about:blank/srcdoc either tested or explicitly N/A.
-- [x] Fullscreen/theater behavior matches native Twitch; Esc exit verified; second double-click exits to normal layout with chat.
-- [x] No user data, cookies, tokens, or secrets added to the repo/artifacts.
+- [x] `manifest.json` parses and is valid MV3; `"version"` is `1.1.2`.
+- [x] `node --test tests/content.test.js` passes (56 tests).
+- [x] The new regression tests fail on the previous release source (`bed92b5`: 51/55 pass, 4 fail).
+- [x] Real-browser checks for this patch: delayed-click inversion (before/after), live pause held for 8 s with exactly one synthetic toggle, live resume, VOD double click/native control/seekbar smoke, clip pause/resume, click after channel navigation.
+- [x] The extracted release ZIP loads as an unpacked extension; the isolated world `Twitch Click to Pause` is present and pause/resume works on a real VOD.
+- [x] No extension-specific console/runtime errors in the patch checks.
+- [x] Security review: no new permissions, host permissions, network requests, remote code, or message surface; no tokens or secrets in the repo or ZIP.
+- [ ] Real ad insertion remains **BLOCKED** (no ad observed, same as v1.1.1). The release notes must not claim ad support.
+- [~] Extension overlay: the bridge code path is unchanged and covered by unit tests (including a new forwarded-click regression test). A real `ext-twitch.tv` overlay was not re-tested for this patch; see `BROWSER_TEST_REPORT.md` section 12.
+- [~] Fullscreen: double click keeps playback and toggles full-window; in the headless run Twitch used its theater fallback (`document.fullscreenElement` was not set). The fullscreen code path is unchanged from the verified v1.1.1 release.
 
 ## 2. Version decision
 
-- [x] Patch release: `1.1.0` → `1.1.1` (bug fixes, validation hardening, tests/docs; no new user-facing feature).
-- [x] Updated `manifest.json` `"version"` to `1.1.1`.
-- [x] Updated README release examples to `v1.1.1`.
-- [x] Bumped after the real branded Chrome smoke completed.
+- [x] Patch release: `1.1.1` -> `1.1.2` (bug fix only; no new user-facing feature).
+- [x] Updated `manifest.json` `"version"` to `1.1.2`.
+- [x] Updated README release examples to `v1.1.2` and the test count to 56.
 - [x] Kept `manifest_version: 3`; no permissions added.
 
 ## 3. ZIP contents
@@ -50,48 +46,40 @@ README.en.md
 LICENSE
 ```
 
-Excluded:
-
-- `tests/`
-- `AGENTS.md`
-- `AUDIT_REPORT.md`
-- `FIX_PROGRESS.md`
-- `TECHNICAL_IMPROVEMENTS.md`
-- `BROWSER_TEST_REPORT.md`
-- `MANUAL_TEST_CHECKLIST.md`
-- `RELEASE_CHECKLIST.md`
-- `CHANGELOG.md`
-- `opencode.json`
-- any `.zip`, logs, screenshots, profiles, or temp artifacts.
+Excluded: `tests/`, `AGENTS.md`, `AUDIT_REPORT.md`, `FIX_PROGRESS.md`, `TECHNICAL_IMPROVEMENTS.md`, `BROWSER_TEST_REPORT.md`, `MANUAL_TEST_CHECKLIST.md`, `RELEASE_CHECKLIST.md`, `CHANGELOG.md`, `opencode.json`, `.zip`, logs, screenshots, profiles, temp artifacts.
 
 - [x] ZIP has no extra files; `manifest.json` is at the archive root (no nested folder).
-- [x] Extracted ZIP loaded in a clean branded Chrome profile through CDP `Extensions.loadUnpacked`.
-- [x] Extension name `Twitch Click to Pause`, version `1.1.1`, content script installed, `chrome.runtime.getManifest().version === "1.1.1"`.
-- [x] SHA256 computed: `FD1F318B9EF7767E96DC43093036329C3D2DC97096B2B61B734EB538E5513247`.
-- [x] ZIP size: `22486` bytes.
+- [x] SHA256 of every extracted file matches the working tree (manifest, source, icons, READMEs, LICENSE).
+- [x] Extracted ZIP loaded in a clean edge profile via `--load-extension`.
+- [x] Extension name `Twitch Click to Pause`, version `1.1.2`, content script installed.
+- [x] SHA256 computed: `3AE2FE06A0C8DCBC5B9870BBE11812C3CD8F2236DEFBEFAB1C1F29C071DD0AA4`.
+- [x] ZIP size: `23476` bytes.
 
 ## 4. Chrome/Store checks
 
-- [x] `chrome://extensions` loads without errors.
-- [x] Content script runs on `*.twitch.tv`, `player.twitch.tv`, `clips.twitch.tv`, and `*.ext-twitch.tv` (suite covers Twitch pages and real `ext-twitch.tv` frames).
+- [x] `chrome://extensions` equivalent load path: unpacked extension loads without errors.
+- [x] Content script runs on `*.twitch.tv` pages (live, VOD, clip) and on `*.ext-twitch.tv` (unchanged matcher).
 - [x] Manifest description is within store limits (114 characters).
 - [x] Icons 16/32/48/128 valid.
 - [x] No remote code, no analytics, no network requests.
 - [x] Privacy policy/listing: N/A (GitHub release, no store listing).
-- [x] Screenshots/store copy: N/A for this GitHub release; README describes current behavior.
 
 ## 5. Post-release
 
-- [x] Tag the release (`v1.1.1`).
-- [x] Publish GitHub Release with ZIP + SHA256.
-- [x] Update README release examples (already `v1.1.1`).
-- [x] Keep the previous ZIP for rollback.
-- [x] Announce known limitations: ads best-effort/BLOCKED, same-URL stream swap, about:blank/srcdoc unverified, real modal/multiple-player/mobile scenarios manual.
+- [ ] Tag the release (`v1.1.2`) and push it.
+- [ ] Publish the GitHub Release with the ZIP.
+- [ ] Record the release commit, asset size, and SHA256 in this file (follow-up documentation commit).
+- [ ] Keep the previous ZIP and release for rollback.
+- [ ] Announce the known limitations: ads best-effort/BLOCKED, same-URL stream swap, `about:blank`/`srcdoc` unverified, real modal/multiple-player/mobile scenarios manual, a slow double click on a live stream can still cancel the player's reconnect.
 
 ## 6. Do not release if
 
-- Real Chrome smoke is incomplete. **Not triggered:** branded Chrome suite completed with 0 FAIL.
-- Ads were not tested and the release notes claim ad support. **Not triggered:** ads are explicitly BLOCKED and the release notes do not claim ad support.
-- Extension overlay tests were not repeated with a real extension. **Not triggered:** branded Chrome tested the real `solaryhs` supervisor/nested overlay.
-- `tests/` or audit artifacts are included in the ZIP. **Not triggered:** ZIP contains only the distribution files listed above.
-- Version/permissions/manifest were changed without review. **Not triggered:** version was reviewed; manifest_version/permissions unchanged.
+- Real Chrome smoke is incomplete. **Not triggered:** the patch checks listed above passed on Edge 157 (Chromium) against real Twitch.
+- Ads were not tested and the release notes claim ad support. **Not triggered:** ads are explicitly BLOCKED and the notes do not claim ad support.
+- `tests/` or audit artifacts are included in the ZIP. **Not triggered:** the ZIP contains only the distribution files listed above.
+- Version/permissions/manifest were changed without review. **Not triggered:** version is the only metadata change; permissions and manifest structure are unchanged.
+
+## Previous release (v1.1.1)
+
+- Asset: `twitch-click-to-pause-v1.1.1.zip`, 22486 bytes, SHA256 `FD1F318B9EF7767E96DC43093036329C3D2DC97096B2B61B734EB538E5513247`, release commit `1e3ddecd031eb46c67fad617ab410b9d3808ea0a`.
+- Verification and test details: `BROWSER_TEST_REPORT.md` sections 1-11.
